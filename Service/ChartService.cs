@@ -10,17 +10,17 @@ namespace CustomerStatus.Service
         {
             _connectionString = connectionString;
         }
-        public async Task<List<int>> getFirstandLastIDs()
+        public async Task<List<Customer>> getFirstandLastIDs()
         {
             var Ids = new List<int>();
-            string query1 = @"SELECT TOP 1 [CustomerHistoryID]
-                        FROM CustomerHistory
-                        where InsertedDate BETWEEN DATEADD(HOUR, -1, GETDATE()) AND GETDATE();
+            string query1 = @"SELECT
+                (SELECT MIN([CustomerHistoryID])
+                 FROM CustomerHistory
+                 WHERE InsertedDate BETWEEN DATEADD(HOUR, -1, GETDATE()) AND GETDATE()) AS EarliestCustomerHistoryID,
+                (SELECT MAX([CustomerHistoryID])
+                 FROM CustomerHistory
+                 WHERE InsertedDate BETWEEN DATEADD(HOUR, -1, GETDATE()) AND GETDATE()) AS LatestCustomerHistoryID;
             ";
-            string query2 = @"SELECT TOP 1 [CustomerHistoryID]
-                    FROM CustomerHistory
-                    WHERE InsertedDate BETWEEN DATEADD(HOUR, -1, GETDATE()) AND GETDATE()
-                    ORDER BY InsertedDate DESC;";
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 SqlCommand cmd = new SqlCommand(query1,connection);
@@ -29,25 +29,24 @@ namespace CustomerStatus.Service
                 {
                     while (reader.Read())
                     {
-                        int customerId = reader.GetInt32(0);
-                        Ids.Add(customerId);
+                        // Read the earliest CustomerHistoryID
+                        if (!reader.IsDBNull(0))
+                        {
+                            Ids.Add(reader.GetInt32(0));
+                        }
+
+                        // Read the latest CustomerHistoryID
+                        if (!reader.IsDBNull(1))
+                        {
+                            Ids.Add(reader.GetInt32(1));
+                        }
+
                     }
                 }
             }
-            using (SqlConnection connection = new SqlConnection(_connectionString))
-            {
-                SqlCommand cmd = new SqlCommand(query2, connection);
-                connection.Open();
-                using (SqlDataReader reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        int customerId = reader.GetInt32(0);
-                        Ids.Add(customerId);
-                    }
-                }
-            }
-            return Ids;
+           
+            var CustomerIDs = await getCustomerIds(Ids);
+            return await getData(CustomerIDs, Ids);
         } 
         public async Task<List<int>> getCustomerIds(List<int> Ids)
         {
