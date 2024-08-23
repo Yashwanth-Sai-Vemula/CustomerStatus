@@ -13,10 +13,8 @@ namespace CustomerStatus.Controllers
         }
         public async Task<IActionResult> Index()
         {
-            List<int> Ids = await _chartService.getFirstandLastIDs();
-            List<int> data = await _chartService.getCustomerIds(Ids);
-            List<Customer> ChartData = await _chartService.getData(data,Ids); 
-            return View(ChartData);
+            List<Customer> Data = await _chartService.getFirstandLastIDs();
+            return View(Data);
         }
     }
 }
