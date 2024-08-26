@@ -45,42 +45,10 @@ namespace CustomerStatus.Service
                 }
             }
            
-            var CustomerIDs = await getCustomerIds(Ids);
-            return await getData(CustomerIDs, Ids);
+            return await getData(Ids);
         } 
-        public async Task<List<int>> getCustomerIds(List<int> Ids)
-        {
-            var customerIds = new List<int>();
-            string query = @"
-                    SELECT DISTINCT CustomerID
-                    FROM CustomerHistory
-                    WHERE CustomerHistoryID >= @StartId AND CustomerHistoryID <= @EndId;
-            ";
-
-            using (SqlConnection connection = new SqlConnection(_connectionString))
-            {
-                using (SqlCommand command = new SqlCommand(query, connection))
-                {
-                    command.Parameters.AddWithValue("@StartId", Ids[0]);
-                    command.Parameters.AddWithValue("@EndId", Ids[1]);
-                    connection.Open();
-                    using (SqlDataReader reader = command.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            int customerId = reader.GetInt32(0);
-                            customerIds.Add(customerId);
-                        }
-                    }
-                };
-            }
-            foreach(var id in customerIds)
-            {
-                Console.WriteLine(id);
-            }
-            return customerIds;
-        }
-        public async Task<List<Customer>> getData(List<int> Data,List<int> Ids)
+       
+        public async Task<List<Customer>> getData(List<int> Ids)
         {
             var ApplicationStatusColors = new Dictionary<int, string>
             {
@@ -122,13 +90,11 @@ namespace CustomerStatus.Service
                 { 507, "#33A1FF" }   // RBLLoanClosed - Sky Blue
             };
             var ChartData = new List<Customer>();
-            var customerIDs = string.Join(", ", Data);
 
             string query = @"
                 SELECT CustomerID, CustomerStatusCodeID, ApplicationStatus, InsertedDate
                 FROM CustomerHistory
-                WHERE CustomerID IN (" + customerIDs + @")
-                AND (CustomerHistoryID >= @StartId AND CustomerHistoryID <= @EndId)
+                WHERE (CustomerHistoryID >= @StartId AND CustomerHistoryID <= @EndId)
                 ORDER BY CustomerID, InsertedDate;
             ";
 
