@@ -110,12 +110,27 @@
                 x: new Date(detail.insertedDate),
                 y: customer.customerId,
                 applicationStatusCode: ApplicationStatusCode[detail.applicationStatusCode],
-                customerStatusCode: CustomerStatusCode[detail.customerStatusCode]
+                customerStatusCode: CustomerStatusCode[detail.customerStatusCode],
+                backgroundColor: detail.color,
+                borderColor: detail.Color
             })),
             showLine: true,
             fill: false,
-            borderColor: getRandomColor(),
-            backgroundColor: getRandomColor()
+            segment: {
+                borderColor: (ctx) => {
+                    const index = ctx.p0DataIndex; // Current point index
+                    const nextIndex = ctx.p1DataIndex; // Next point index
+
+                    if (nextIndex === customer.details.length - 1) {
+                        // If it's the last point, set the line to black
+                        return '#000000';
+                    }
+
+                    // Use the color of the next point
+                    return customer.details[nextIndex].color;
+                }
+            },
+            borderWidth: 1 // Thickness of the line
         }))
     };
 

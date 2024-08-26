@@ -10,5 +10,6 @@
         public int CustomerStatusCode { get; set; }
         public int ApplicationStatusCode { get; set; }
         public DateTime InsertedDate { get; set; }
+        public string Color { get; set; }
     }
 }
