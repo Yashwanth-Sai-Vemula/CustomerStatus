@@ -4,7 +4,7 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<h2>Customer Status Change Code</h2>
+<h2>Customer Status</h2>
 
 <div style="height: 80vh;">
     <canvas id="customerChart"></canvas>
@@ -112,7 +112,7 @@
                 applicationStatusCode: ApplicationStatusCode[detail.applicationStatusCode],
                 customerStatusCode: CustomerStatusCode[detail.customerStatusCode],
                 backgroundColor: detail.color,
-                borderColor: detail.Color
+                borderColor: detail.color
             })),
             showLine: true,
             fill: false,
@@ -121,7 +121,7 @@
                     const index = ctx.p0DataIndex; // Current point index
                     const nextIndex = ctx.p1DataIndex; // Next point index
 
-                    if (nextIndex === customer.details.length - 1) {
+                    if (nextIndex === undefined) {
                         // If it's the last point, set the line to black
                         return '#000000';
                     }
@@ -200,12 +200,4 @@
     });
 
     // Function to generate random colors
-    function getRandomColor() {
-        const letters = '0123456789ABCDEF';
-        let color = '#';
-        for (let i = 0; i < 6; i++) {
-            color += letters[Math.floor(Math.random() * 16)];
-        }
-        return color;
-    }
 </script>
