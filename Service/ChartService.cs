@@ -29,18 +29,15 @@ namespace CustomerStatus.Service
                 {
                     while (reader.Read())
                     {
-                        // Read the earliest CustomerHistoryID
                         if (!reader.IsDBNull(0))
                         {
                             Ids.Add(reader.GetInt32(0));
                         }
 
-                        // Read the latest CustomerHistoryID
                         if (!reader.IsDBNull(1))
                         {
                             Ids.Add(reader.GetInt32(1));
                         }
-
                     }
                 }
             }

@@ -111,26 +111,26 @@
                 y: customer.customerId,
                 applicationStatusCode: ApplicationStatusCode[detail.applicationStatusCode],
                 customerStatusCode: CustomerStatusCode[detail.customerStatusCode],
-                backgroundColor: detail.color,
-                borderColor: detail.color
+                color: detail.color 
             })),
             showLine: true,
             fill: false,
+            pointBackgroundColor: customer.details.map(detail => detail.color), 
+            pointBorderColor: customer.details.map(detail => detail.color),
             segment: {
                 borderColor: (ctx) => {
-                    const index = ctx.p0DataIndex; // Current point index
-                    const nextIndex = ctx.p1DataIndex; // Next point index
-
-                    if (nextIndex === undefined) {
-                        // If it's the last point, set the line to black
-                        return '#000000';
+                    if (ctx.p0DataIndex === undefined || ctx.p1DataIndex === undefined) {
+                        return '#000000'; 
                     }
 
-                    // Use the color of the next point
-                    return customer.details[nextIndex].color;
+                    const datasetIndex = ctx.datasetIndex;
+                    const pointIndex = ctx.p1DataIndex; 
+
+                    const color = chartData.datasets[datasetIndex].data[pointIndex].color;
+                    return color || '#000000';
                 }
             },
-            borderWidth: 1 // Thickness of the line
+            borderWidth: 1
         }))
     };
 
@@ -199,5 +199,4 @@
         }
     });
 
-    // Function to generate random colors
 </script>
