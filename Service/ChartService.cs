@@ -10,7 +10,7 @@ namespace CustomerStatus.Service
         {
             _connectionString = connectionString;
         }
-        public async Task<List<Customer>> getFirstandLastIDs()
+        public async Task<List<int>> getFirstandLastIDs()
         {
             var Ids = new List<int>();
             string query1 = @"SELECT
@@ -45,11 +45,12 @@ namespace CustomerStatus.Service
                 }
             }
            
-            return await getData(Ids);
+            return Ids;
         } 
        
-        public async Task<List<Customer>> getData(List<int> Ids)
+        public async Task<List<Customer>> getData()
         {
+            var Ids = await getFirstandLastIDs();
             var ApplicationStatusColors = new Dictionary<int, string>
             {
                 { 185, "#FF5733" },  // ApplicationReceived - Orange

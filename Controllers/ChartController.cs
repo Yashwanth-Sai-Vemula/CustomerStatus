@@ -13,7 +13,7 @@ namespace CustomerStatus.Controllers
         }
         public async Task<IActionResult> Index()
         {
-            List<Customer> Data = await _chartService.getFirstandLastIDs();
+            List<Customer> Data = await _chartService.getData();
             return View(Data);
         }
     }
