@@ -90,6 +90,9 @@
 
     const customers = @Html.Raw(Json.Serialize(Model));
     console.log(customers);
+    const firstInsertedDate = new Date(customers[0].details[0].insertedDate);
+    const minTime = firstInsertedDate; // Start from the first inserted date
+    const maxTime = new Date(minTime.getTime() + 60 * 60 * 1000); // Add one hour to the min time
 
     // Find the earliest and latest dates
     let earliestDate = new Date(customers[0].details[0].insertedDate);
@@ -149,7 +152,9 @@
                         tooltipFormat: 'hh:mm a',
                         displayFormats: {
                             minute: 'hh:mm a'
-                        }
+                        },
+                        min: minTime, // Set to one hour ago
+                        max: maxTime // Current time
                     },
                     title: {
                         display: true,

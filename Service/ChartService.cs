@@ -12,14 +12,17 @@ namespace CustomerStatus.Service
         }
         public async Task<List<int>> getFirstandLastIDs()
         {
+            var currentDateMinusHours = 0;
             var Ids = new List<int>();
-            string query1 = @"SELECT
-                (SELECT MIN([CustomerHistoryID])
-                 FROM CustomerHistory
-                 WHERE InsertedDate BETWEEN DATEADD(HOUR, -1, GETDATE()) AND GETDATE()) AS EarliestCustomerHistoryID,
-                (SELECT MAX([CustomerHistoryID])
-                 FROM CustomerHistory
-                 WHERE InsertedDate BETWEEN DATEADD(HOUR, -1, GETDATE()) AND GETDATE()) AS LatestCustomerHistoryID;
+            string query1 = @$"DECLARE @Dt DateTime;
+                                SET @Dt = DATEADD(HOUR, -{currentDateMinusHours}, GETDATE());
+                            SELECT
+                                (SELECT MIN([CustomerHistoryID])
+                                 FROM CustomerHistory
+                                 WHERE InsertedDate BETWEEN DATEADD(HOUR, -1, @Dt) AND @Dt) AS EarliestCustomerHistoryID,
+                                (SELECT MAX([CustomerHistoryID])
+                                 FROM CustomerHistory
+                                 WHERE InsertedDate BETWEEN DATEADD(HOUR, -1, @Dt) AND @Dt) AS LatestCustomerHistoryID;
             ";
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
