@@ -14,20 +14,25 @@ namespace CustomerStatus.Service
         {
             var currentDateMinusHours = 0;
             var Ids = new List<int>();
-            string query1 = @$"DECLARE @Dt DateTime;
-                                SET @Dt = DATEADD(HOUR, -{currentDateMinusHours}, GETDATE());
-                            SELECT
-                                (SELECT MIN([CustomerHistoryID])
-                                 FROM CustomerHistory
-                                 WHERE InsertedDate BETWEEN DATEADD(HOUR, -1, @Dt) AND @Dt) AS EarliestCustomerHistoryID,
-                                (SELECT MAX([CustomerHistoryID])
-                                 FROM CustomerHistory
-                                 WHERE InsertedDate BETWEEN DATEADD(HOUR, -1, @Dt) AND @Dt) AS LatestCustomerHistoryID;
+            string query1 = @$"DECLARE @EndDate DATETIME;
+                                DECLARE @StartDate DATETIME;
+
+                                SET @EndDate = DATEADD(HOUR, -{currentDateMinusHours}, GETDATE());
+                                SET @StartDate = DATEADD(HOUR, -1, @EndDate);
+
+                                SELECT 
+                                    MIN(CustomerHistoryID) AS EarliestCustomerHistoryID,
+                                    MAX(CustomerHistoryID) AS LatestCustomerHistoryID
+                                FROM 
+                                    CustomerHistory
+                                WHERE 
+                                    InsertedDate BETWEEN @StartDate AND @EndDate;
             ";
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 SqlCommand cmd = new SqlCommand(query1,connection);
                 connection.Open();
+                cmd.CommandTimeout = 120;
                 using (SqlDataReader reader = cmd.ExecuteReader())
                 {
                     while (reader.Read())
@@ -38,7 +43,8 @@ namespace CustomerStatus.Service
                         }
                         else
                         {
-                            Ids = await GetLastOneHourTableData();
+                            Console.WriteLine("No data is present at the time of given duartion So the last one hour data of the displayed");
+                            Ids = await GetTableLastOneHourData();
                             break;
                         }
 
@@ -108,6 +114,7 @@ namespace CustomerStatus.Service
             {
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
+                    command.CommandTimeout = 120;
                     command.Parameters.AddWithValue("@StartId", Ids[0]);
                     command.Parameters.AddWithValue("@EndId", Ids[1]);
                     connection.Open();
@@ -152,7 +159,7 @@ namespace CustomerStatus.Service
 
             return ChartData;
         }
-        public async Task<List<int>> GetLastOneHourTableData()
+        public async Task<List<int>> GetTableLastOneHourData()
         {
             var IDs = new List<int>();
             string query1 = @"
