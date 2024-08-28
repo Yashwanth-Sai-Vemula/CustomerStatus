@@ -36,6 +36,11 @@ namespace CustomerStatus.Service
                         {
                             Ids.Add(reader.GetInt32(0));
                         }
+                        else
+                        {
+                            Ids = await GetLastOneHourTableData();
+                            break;
+                        }
 
                         if (!reader.IsDBNull(1))
                         {
@@ -146,6 +151,45 @@ namespace CustomerStatus.Service
             }
 
             return ChartData;
+        }
+        public async Task<List<int>> GetLastOneHourTableData()
+        {
+            var IDs = new List<int>();
+            string query1 = @"
+            DECLARE @LastInsertedDate DATETIME = (SELECT MAX(InsertedDate) FROM CustomerHistory);
+
+            DECLARE @OneHourAgo DATETIME = DATEADD(HOUR, -1, @LastInsertedDate);
+            SELECT
+                (SELECT TOP 1 [CustomerHistoryID] 
+                 FROM CustomerHistory 
+                 WHERE InsertedDate BETWEEN @OneHourAgo AND @LastInsertedDate 
+                 ORDER BY InsertedDate ASC) AS EarliestCustomerHistoryID,
+
+                (SELECT TOP 1 [CustomerHistoryID] 
+                 FROM CustomerHistory 
+                 WHERE InsertedDate BETWEEN @OneHourAgo AND @LastInsertedDate 
+                 ORDER BY InsertedDate DESC) AS LatestCustomerHistoryID;
+            ";
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                SqlCommand cmd = new SqlCommand(query1, connection);
+                connection.Open();
+                using (SqlDataReader reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        if (!reader.IsDBNull(0))
+                        {
+                            IDs.Add(reader.GetInt32(0));
+                        }
+                        if (!reader.IsDBNull(1))
+                        {
+                            IDs.Add(reader.GetInt32(1));
+                        }
+                    }
+                }
+            }
+            return IDs;
         }
     }
 }
