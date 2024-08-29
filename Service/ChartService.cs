@@ -10,58 +10,12 @@ namespace CustomerStatus.Service
         {
             _connectionString = connectionString;
         }
-        public async Task<List<int>> getFirstandLastIDs()
-        {
-            var currentDateMinusHours = 0;
-            var Ids = new List<int>();
-            string query1 = @$"DECLARE @EndDate DATETIME;
-                                DECLARE @StartDate DATETIME;
-
-                                SET @EndDate = DATEADD(HOUR, -{currentDateMinusHours}, GETDATE());
-                                SET @StartDate = DATEADD(HOUR, -1, @EndDate);
-
-                                SELECT 
-                                    MIN(CustomerHistoryID) AS EarliestCustomerHistoryID,
-                                    MAX(CustomerHistoryID) AS LatestCustomerHistoryID
-                                FROM 
-                                    CustomerHistory
-                                WHERE 
-                                    InsertedDate BETWEEN @StartDate AND @EndDate;
-            ";
-            using (SqlConnection connection = new SqlConnection(_connectionString))
-            {
-                SqlCommand cmd = new SqlCommand(query1,connection);
-                connection.Open();
-                cmd.CommandTimeout = 120;
-                using (SqlDataReader reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        if (!reader.IsDBNull(0))
-                        {
-                            Ids.Add(reader.GetInt32(0));
-                        }
-                        else
-                        {
-                            Console.WriteLine("No data is present at the time of given duartion So the last one hour data of the displayed");
-                            Ids = await GetTableLastOneHourData();
-                            break;
-                        }
-
-                        if (!reader.IsDBNull(1))
-                        {
-                            Ids.Add(reader.GetInt32(1));
-                        }
-                    }
-                }
-            }
-           
-            return Ids;
-        } 
+      
        
         public async Task<List<Customer>> getData()
         {
-            var Ids = await getFirstandLastIDs();
+            var (lastCustomerHistoryID, LastInsertedDate) = await GetLastData();
+            var (earliestCustomerHistoryID, closestCustomerHistoryID) = await GetClosestHistoryIDAsync(lastCustomerHistoryID, LastInsertedDate);
             var ApplicationStatusColors = new Dictionary<int, string>
             {
                 { 185, "#FF5733" },  // ApplicationReceived - Orange
@@ -115,8 +69,8 @@ namespace CustomerStatus.Service
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.CommandTimeout = 120;
-                    command.Parameters.AddWithValue("@StartId", Ids[0]);
-                    command.Parameters.AddWithValue("@EndId", Ids[1]);
+                    command.Parameters.AddWithValue("@StartId", earliestCustomerHistoryID);
+                    command.Parameters.AddWithValue("@EndId", lastCustomerHistoryID);
                     connection.Open();
                     using (SqlDataReader reader = command.ExecuteReader())
                     {
@@ -159,44 +113,96 @@ namespace CustomerStatus.Service
 
             return ChartData;
         }
-        public async Task<List<int>> GetTableLastOneHourData()
+        public async Task<(int, DateTime)> GetLastData()
         {
-            var IDs = new List<int>();
-            string query1 = @"
-            DECLARE @LastInsertedDate DATETIME = (SELECT MAX(InsertedDate) FROM CustomerHistory);
-
-            DECLARE @OneHourAgo DATETIME = DATEADD(HOUR, -1, @LastInsertedDate);
-            SELECT
-                (SELECT TOP 1 [CustomerHistoryID] 
-                 FROM CustomerHistory 
-                 WHERE InsertedDate BETWEEN @OneHourAgo AND @LastInsertedDate 
-                 ORDER BY InsertedDate ASC) AS EarliestCustomerHistoryID,
-
-                (SELECT TOP 1 [CustomerHistoryID] 
-                 FROM CustomerHistory 
-                 WHERE InsertedDate BETWEEN @OneHourAgo AND @LastInsertedDate 
-                 ORDER BY InsertedDate DESC) AS LatestCustomerHistoryID;
-            ";
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
-                SqlCommand cmd = new SqlCommand(query1, connection);
+                string query = @"
+                SELECT TOP 1 CustomerHistoryID, InsertedDate
+                FROM CustomerHistory
+                ORDER BY CustomerHistoryID DESC";
+
+                SqlCommand command = new SqlCommand(query, connection);
                 connection.Open();
-                using (SqlDataReader reader = cmd.ExecuteReader())
+
+                using (SqlDataReader reader = command.ExecuteReader())
                 {
-                    while (reader.Read())
+                    if (reader.Read())
                     {
-                        if (!reader.IsDBNull(0))
-                        {
-                            IDs.Add(reader.GetInt32(0));
-                        }
-                        if (!reader.IsDBNull(1))
-                        {
-                            IDs.Add(reader.GetInt32(1));
-                        }
+                        int maxCustomerHistoryID = reader.GetInt32(0);
+                        DateTime maxInsertedDate = reader.GetDateTime(1);
+                        return (maxCustomerHistoryID, maxInsertedDate);
                     }
                 }
             }
-            return IDs;
+            return (0, DateTime.MinValue);
+        }
+        public async Task<(int,int)> GetClosestHistoryIDAsync(int maxCustomerHistoryID, DateTime lastInsertedDate)
+        {
+            int stepSize = 1000;
+
+            int closestCustomerHistoryID = maxCustomerHistoryID;
+            DateTime closestDate = lastInsertedDate;
+
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+
+                while (stepSize > 0)
+                {
+                    string query = @"
+                    SELECT InsertedDate 
+                    FROM CustomerHistory
+                    WHERE CustomerHistoryID = @CustomerHistoryID";
+
+                    DateTime currentDate;
+
+                    using (SqlCommand command = new SqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@CustomerHistoryID", closestCustomerHistoryID);
+
+                        object result = await command.ExecuteScalarAsync();
+
+                        if (result != null && result != DBNull.Value)
+                        {
+                            currentDate = (DateTime)result;
+                        }
+                        else
+                        {
+                            throw new Exception("CustomerHistoryID not found.");
+                        }
+                    }
+
+                    TimeSpan difference = currentDate - lastInsertedDate.AddHours(-1);
+                    if (Math.Abs(difference.Seconds) <= 0)
+                    {
+                        break;
+                    }
+                    if (difference.TotalSeconds > 0)
+                    {
+                        closestCustomerHistoryID -= stepSize;
+                    }
+                    else if (difference.TotalSeconds < 0)
+                    {
+                        closestCustomerHistoryID += stepSize;
+                    }
+                    else
+                    {
+                        break;
+                    }
+
+                    if (Math.Abs(difference.TotalSeconds) < 600)
+                    {
+                        stepSize = Math.Max(stepSize / 2, 1); 
+                    }
+                }
+
+                int earliestCustomerHistoryID = closestCustomerHistoryID - stepSize;
+                int latestCustomerHistoryID = closestCustomerHistoryID + stepSize;
+
+                return (earliestCustomerHistoryID, closestCustomerHistoryID);
+            } 
         }
     }
+
 }

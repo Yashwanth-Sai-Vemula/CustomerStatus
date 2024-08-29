@@ -6,7 +6,7 @@
 
 <h2>Customer Status</h2>
 
-<div style="height: 80vh;">
+<div style="height: 300vh;">
     <canvas id="customerChart"></canvas>
 </div>
 
@@ -112,8 +112,8 @@
             data: customer.details.map(detail => ({
                 x: new Date(detail.insertedDate),
                 y: customer.customerId,
-                applicationStatusCode: ApplicationStatusCode[detail.applicationStatusCode],
-                customerStatusCode: CustomerStatusCode[detail.customerStatusCode],
+                applicationStatus: ApplicationStatusCode[detail.applicationStatusCode],
+                customerStatus: CustomerStatusCode[detail.customerStatusCode],
                 color: detail.color 
             })),
             showLine: true,
@@ -194,8 +194,8 @@
                             const dataPoint = context.raw;
                             return [
                                 `Inserted: ${dataPoint.x.toLocaleString()}`,
-                                `App Status: ${dataPoint.applicationStatusCode}`,
-                                `Cust Status: ${dataPoint.customerStatusCode}`
+                                `App Status: ${dataPoint.applicationStatus}`,
+                                `Cust Status: ${dataPoint.customerStatus}`
                             ];
                         }
                     }
