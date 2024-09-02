@@ -6,7 +6,7 @@
 
 <h2>Customer Status</h2>
 
-<div class="container" style="height:1000vh; overflow-y: auto; margin: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 10px;">
+<div class="container" style="height:1000vh; margin: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 10px;">
     <canvas id="customerChart"></canvas>
 </div>
 
@@ -111,7 +111,7 @@
     const chartData = {
         datasets: customers.map(customer => ({
             label: `Customer ${customer.customerId}`,
-            data: customer.details.map(detail => ({
+            data: customer.details.map(detail => ({ 
                 x: new Date(detail.insertedDate),
                 y: customer.customerId,
                 applicationStatus: ApplicationStatusCode[detail.applicationStatusCode],
