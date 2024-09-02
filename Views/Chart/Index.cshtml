@@ -6,14 +6,16 @@
 
 <h2>Customer Status</h2>
 
-<div style="height: 300vh;">
+<div class="container" style="height:1000vh; overflow-y: auto; margin: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 10px;">
     <canvas id="customerChart"></canvas>
 </div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.0.1"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0"></script>
 
 <script>
+
     const ApplicationStatusCode = {
         185: 'ApplicationReceived',
         190: 'IncompleteApplication',
@@ -114,20 +116,20 @@
                 y: customer.customerId,
                 applicationStatus: ApplicationStatusCode[detail.applicationStatusCode],
                 customerStatus: CustomerStatusCode[detail.customerStatusCode],
-                color: detail.color 
+                color: detail.color
             })),
             showLine: true,
             fill: false,
-            pointBackgroundColor: customer.details.map(detail => detail.color), 
+            pointBackgroundColor: customer.details.map(detail => detail.color),
             pointBorderColor: customer.details.map(detail => detail.color),
             segment: {
                 borderColor: (ctx) => {
                     if (ctx.p0DataIndex === undefined || ctx.p1DataIndex === undefined) {
-                        return '#000000'; 
+                        return '#000000';
                     }
 
                     const datasetIndex = ctx.datasetIndex;
-                    const pointIndex = ctx.p1DataIndex; 
+                    const pointIndex = ctx.p1DataIndex;
 
                     const color = chartData.datasets[datasetIndex].data[pointIndex].color;
                     return color || '#000000';
@@ -138,6 +140,11 @@
     };
 
     const ctx = document.getElementById('customerChart').getContext('2d');
+    const customerSpacing = 50; // Fixed spacing between customer IDs
+    const chartHeight = customers.length * customerSpacing;
+
+    // Set canvas height dynamically based on the number of customers
+    ctx.canvas.height = chartHeight;
     const customerChart = new Chart(ctx, {
         type: 'line',
         data: chartData,
@@ -161,10 +168,10 @@
                         text: 'Time'
                     },
                     ticks: {
-                        autoSkip: true, 
-                        maxTicksLimit: 25, 
+                        autoSkip: true,
+                        maxTicksLimit: 25,
                         major: {
-                            enabled: true 
+                            enabled: true
                         }
                     },
                     grid: {
@@ -180,19 +187,29 @@
                         text: 'Customer ID'
                     },
                     ticks: {
-                        autoSkip: false  // Ensure all labels are shown
+                        autoSkip: false, // Ensures no session ID is skipped
+                        maxTicksLimit: 20, // Limits the number of ticks shown to prevent overcrowding
+                        padding: 20,
+                        font: {
+                            size: 12 
+                        }
+                    },
+                    gridLines: {
+                        display: true,
+                        drawBorder: false,
                     }
                 }
             },
             plugins: {
-                legend : {
-                    display : false
+                legend: {
+                    display: false
                 },
                 tooltip: {
                     callbacks: {
                         label: function (context) {
                             const dataPoint = context.raw;
                             return [
+                                `CustomerId: ${dataPoint.y}`,
                                 `Inserted: ${dataPoint.x.toLocaleString()}`,
                                 `App Status: ${dataPoint.applicationStatus}`,
                                 `Cust Status: ${dataPoint.customerStatus}`

@@ -199,3 +199,229 @@ public enum ApplicationStatusCode
             }
             return customerIds;
         }
+
+
+
+
+
+
+
+
+
+
+        @using CustomerStatus.Model;
+@model List<Customer>;
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h2>Customer Status</h2>
+
+<div class="container">
+    <div class="chart-container" style="width:100%; height:100vh; overflow-y: scroll; margin: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 10px;">
+        <canvas id="customerChart" style="width: 1325px; height: auto"></canvas>
+    </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.0.1"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0"></script>
+
+<script>
+    const ApplicationStatusCode = {
+        185: 'ApplicationReceived',
+        190: 'IncompleteApplication',
+        195: 'LNVerificationFailed',
+        200: 'LNVerified',
+        205: 'CallPending',
+        210: 'WaitingForDocuments',
+        211: 'WorkDetailsCompleted',
+        212: 'PersonalDetailsCompleted',
+        213: 'IncomeDetailsCompleted',
+        214: 'BankDetailsCompleted',
+        215: 'OnlineCustomerInSupervisorRequest',
+        216: 'Archive',
+        217: 'OnlineInReview',
+        218: 'OnlineInSupervisorReview',
+        219: 'DocumentCompleted',
+        220: 'AccountCreated',
+        230: 'NeedMoreInfo',
+        240: 'SendToStore',
+        250: 'VANeedMoreInfo',
+        260: 'LNAuthFailed',
+        270: 'LNAuthSuccess',
+        280: 'DebitCardDetailsCompleted',
+        290: 'InVerification',
+        300: 'Declined',
+        310: 'Withdrawn',
+        320: 'ApprovedPendingSignature',
+        330: 'Originated',
+        340: 'AutoWithdrawal',
+        350: 'LoanClose',
+        501: 'FSVerificationAccepted',
+        502: 'RBLVerificationAccepted',
+        503: 'RBLVerificationDeclined',
+        504: 'RBLLoanInitiated',
+        505: 'RBLAgreementsAccepted',
+        506: 'RBLLoanDisbursed',
+        507: 'RBLLoanClosed'
+    };
+
+    const CustomerStatusCode = {
+        10: 'Active',
+        20: 'InActive',
+        30: 'InVerification',
+        40: 'Accepted',
+        50: 'AgentNotAssigned',
+        60: 'NotAccepted',
+        70: 'RequestToSupervisor',
+        80: 'Bankrupt',
+        90: 'Deceased',
+        100: 'Ageing',
+        110: 'Blocked',
+        120: 'NeedMoreInfo',
+        130: 'VerificationInProcess',
+        140: 'VerificationDiscard',
+        150: 'NeedMoreInfoSupervisor',
+        160: 'AssignToAgent',
+        170: 'InfoRespondedToAgent',
+        180: 'InfoRespondedToSupervisor',
+        185: 'ApplicationReceived',
+        190: 'IncompleteApplication',
+        195: 'LNVerificationFailed',
+        200: 'LNVerified',
+        205: 'CallPending',
+        210: 'WaitingForDocuments',
+        211: 'WorkDetailsCompleted',
+        212: 'PersonalDetailsCompleted',
+        213: 'IncomeDetailsCompleted',
+        214: 'BankDetailsCompleted',
+        215: 'OnlineCustomerInSupervisorRequest',
+        216: 'Archive',
+        217: 'OnlineInReview',
+        218: 'OnlineInSupervisorReview'
+    };
+
+    const customers = @Html.Raw(Json.Serialize(Model));
+    console.log(customers);
+    const firstInsertedDate = new Date(customers[0].details[0].insertedDate);
+    const minTime = firstInsertedDate; // Start from the first inserted date
+    const maxTime = new Date(minTime.getTime() + 60 * 60 * 1000); // Add one hour to the min time
+
+    // Find the earliest and latest dates
+    let earliestDate = new Date(customers[0].details[0].insertedDate);
+    let latestDate = new Date(customers[0].details[0].insertedDate);
+    customers.forEach(customer => {
+        customer.details.forEach(detail => {
+            const date = new Date(detail.insertedDate);
+            if (date < earliestDate) earliestDate = date;
+            if (date > latestDate) latestDate = date;
+        });
+    });
+
+    // Prepare the data for Chart.js
+    const chartData = {
+        datasets: customers.map(customer => ({
+            label: `Customer ${customer.customerId}`,
+            data: customer.details.map(detail => ({
+                x: new Date(detail.insertedDate),
+                y: customer.customerId,
+                applicationStatus: ApplicationStatusCode[detail.applicationStatusCode],
+                customerStatus: CustomerStatusCode[detail.customerStatusCode],
+                color: detail.color 
+            })),
+            showLine: true,
+            fill: false,
+            pointBackgroundColor: customer.details.map(detail => detail.color), 
+            pointBorderColor: customer.details.map(detail => detail.color),
+            segment: {
+                borderColor: (ctx) => {
+                    if (ctx.p0DataIndex === undefined || ctx.p1DataIndex === undefined) {
+                        return '#000000'; 
+                    }
+
+                    const datasetIndex = ctx.datasetIndex;
+                    const pointIndex = ctx.p1DataIndex; 
+
+                    const color = chartData.datasets[datasetIndex].data[pointIndex].color;
+                    return color || '#000000';
+                }
+            },
+            borderWidth: 1
+        }))
+    };
+
+    const ctx = document.getElementById('customerChart').getContext('2d');
+    const customerChart = new Chart(ctx, {
+        type: 'line',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'minute',
+                        tooltipFormat: 'hh:mm a',
+                        displayFormats: {
+                            minute: 'hh:mm a'
+                        },
+                        min: minTime, // Set to one hour ago
+                        max: maxTime // Current time
+                    },
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    },
+                    ticks: {
+                        autoSkip: true, 
+                        maxTicksLimit: 25, 
+                        major: {
+                            enabled: true 
+                        }
+                    },
+                    grid: {
+                        display: true,
+                        drawOnChartArea: true
+                    }
+                },
+                y: {
+                    type: 'category',
+                    labels: customers.map(c => c.customerId),
+                    title: {
+                        display: true,
+                        text: 'Customer ID'
+                    },
+                    ticks: {
+                        autoSkip: false, // Ensures no session ID is skipped
+                        maxTicksLimit: 20, // Limits the number of ticks shown to prevent overcrowding
+                        padding: 10, // Adds space between ticks
+                    },
+                    gridLines: {
+                        display: true,
+                        drawBorder: false,
+                    }
+                }
+            },
+            plugins: {
+                legend : {
+                    display : false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            const dataPoint = context.raw;
+                            return [
+                                `Inserted: ${dataPoint.x.toLocaleString()}`,
+                                `App Status: ${dataPoint.applicationStatus}`,
+                                `Cust Status: ${dataPoint.customerStatus}`
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+</script>

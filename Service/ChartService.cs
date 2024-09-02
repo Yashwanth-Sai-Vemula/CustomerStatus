@@ -83,28 +83,30 @@ namespace CustomerStatus.Service
 
                             // Find or create the Customer object
                             var customer = ChartData.Find(c => c.CustomerId == customerId);
-                            if (customer == null)
+                            if (customer == null && insertedDate < DateTime.Now && insertedDate > DateTime.Now.AddHours(-1))
                             {
                                 customer = new Customer { CustomerId = customerId, Details = new List<Details>() };
                                 ChartData.Add(customer);
                             }
-                            var existingDetail = customer.Details
-                                .FirstOrDefault(d => d.CustomerStatusCode == CustomerStatusCode && d.ApplicationStatusCode == ApplicationStatusCode);
-
-                            if (existingDetail == null)
+                            if (customer != null && customer.Details != null)
                             {
-                                if (!ApplicationStatusColors.ContainsKey(ApplicationStatusCode))
-                                {
-                                    ApplicationStatusColors[ApplicationStatusCode] = "#000000"; // Default color (black)
+                                var existingDetail = customer.Details
+                                    .FirstOrDefault(d => d.CustomerStatusCode == CustomerStatusCode && d.ApplicationStatusCode == ApplicationStatusCode);
+
+                                if (existingDetail == null)
+                                { 
+                                    if(ApplicationStatusCode != 0 && CustomerStatusCode != 0)
+                                    {
+                                        customer.Details.Add(new Details
+                                        {
+                                            CustomerStatusCode = CustomerStatusCode,
+                                            ApplicationStatusCode = ApplicationStatusCode,
+                                            InsertedDate = insertedDate,
+                                            Color = ApplicationStatusColors[ApplicationStatusCode]
+                                        });
+                                    }
+                                    // Add new Details if not present
                                 }
-                                // Add new Details if not present
-                                customer.Details.Add(new Details
-                                {
-                                    CustomerStatusCode = CustomerStatusCode,
-                                    ApplicationStatusCode = ApplicationStatusCode,
-                                    InsertedDate = insertedDate,
-                                    Color = ApplicationStatusColors[ApplicationStatusCode]
-                                });
                             }
                         }
                     }
@@ -139,7 +141,7 @@ namespace CustomerStatus.Service
         }
         public async Task<(int,int)> GetClosestHistoryIDAsync(int maxCustomerHistoryID, DateTime lastInsertedDate)
         {
-            int stepSize = 1000;
+            int stepSize = 15000;
 
             int closestCustomerHistoryID = maxCustomerHistoryID;
             DateTime closestDate = lastInsertedDate;
@@ -174,26 +176,29 @@ namespace CustomerStatus.Service
                     }
 
                     TimeSpan difference = currentDate - lastInsertedDate.AddHours(-1);
-                    if (Math.Abs(difference.Seconds) <= 0)
+
+                    if (Math.Abs(difference.TotalSeconds) <= 1)
                     {
                         break;
                     }
-                    if (difference.TotalSeconds > 0)
+                    if (Math.Abs(difference.TotalSeconds) <= 1)
                     {
                         closestCustomerHistoryID -= stepSize;
+                        stepSize = Math.Max(stepSize / 2, 1);
                     }
                     else if (difference.TotalSeconds < 0)
                     {
                         closestCustomerHistoryID += stepSize;
+                        stepSize = Math.Max(stepSize / 2, 1);
                     }
                     else
                     {
                         break;
                     }
 
-                    if (Math.Abs(difference.TotalSeconds) < 600)
+                    if (stepSize == 1 && Math.Abs(difference.TotalSeconds) <= 1)
                     {
-                        stepSize = Math.Max(stepSize / 2, 1); 
+                        break;
                     }
                 }
 
