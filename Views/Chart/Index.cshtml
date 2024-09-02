@@ -92,6 +92,9 @@
 
     const customers = @Html.Raw(Json.Serialize(Model));
     console.log(customers);
+    if (customers.length == 0) {
+        alert("Customer Data not found in last one hour duration to display chart");
+    }
     const firstInsertedDate = new Date(customers[0].details[0].insertedDate);
     const minTime = firstInsertedDate; // Start from the first inserted date
     const maxTime = new Date(minTime.getTime() + 60 * 60 * 1000); // Add one hour to the min time
