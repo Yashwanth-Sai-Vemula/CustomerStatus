@@ -16,6 +16,7 @@ namespace CustomerStatus.Service
         {
             var (lastCustomerHistoryID, LastInsertedDate) = await GetLastData();
             var (earliestCustomerHistoryID, closestCustomerHistoryID) = await GetClosestHistoryIDAsync(lastCustomerHistoryID, LastInsertedDate);
+
             var ApplicationStatusColors = new Dictionary<int, string>
             {
                 { 185, "#FF5733" },  // ApplicationReceived - Orange
@@ -207,6 +208,53 @@ namespace CustomerStatus.Service
 
                 return (earliestCustomerHistoryID, closestCustomerHistoryID);
             } 
+        }
+        public async Task<List<BarData>> GetApplicationData()
+        {
+            var (lastCustomerHistoryID, LastInsertedDate) = await GetLastData();
+            var (earliestCustomerHistoryID, closestCustomerHistoryID) = await GetClosestHistoryIDAsync(lastCustomerHistoryID, LastInsertedDate);
+
+            string query = @"SELECT ApplicationStatus
+                FROM CustomerHistory
+                WHERE (CustomerHistoryID >= @StartId AND CustomerHistoryID <= @EndId)
+                ORDER BY CustomerID, InsertedDate;";
+
+            var barData = new List<BarData>();
+            using(SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.CommandTimeout = 120;
+                    command.Parameters.AddWithValue("@StartId", earliestCustomerHistoryID);
+                    command.Parameters.AddWithValue("@EndId", lastCustomerHistoryID);
+                    await connection.OpenAsync();
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            int ApplicationStatusCode = reader.GetInt16(0);
+                            if(ApplicationStatusCode != 0)
+                            {
+                                var existingData = barData.Find(a => a.ApplicationStatusCode == ApplicationStatusCode);
+                                if (existingData == null)
+                                {
+                                    var Data = new BarData()
+                                    {
+                                        ApplicationStatusCode = ApplicationStatusCode,
+                                        Count = 0
+                                    };
+                                    barData.Add(Data);
+                                }
+                                else
+                                {
+                                    existingData.Count++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return barData;
         }
     }
 
