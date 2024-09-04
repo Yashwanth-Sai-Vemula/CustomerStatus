@@ -1,5 +1,5 @@
 ﻿@using CustomerStatus.Model;
-@model List<Customer>;
+@model CombinedDataModel;
 @{
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
@@ -9,7 +9,9 @@
 <div class="container" style="margin: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 10px;">
     <canvas id="customerChart"></canvas>
 </div>
-
+<div class="container" style="margin: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 10px;">
+    <canvas id="applicationStatusChart"></canvas>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.0.1"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0"></script>
@@ -90,8 +92,12 @@
         218: 'OnlineInSupervisorReview'
     };
 
-    const customers = @Html.Raw(Json.Serialize(Model));
+    const CombinedData = @Html.Raw(Json.Serialize(Model));
+    const customers = CombinedData.customerData;
+    const applicationData = CombinedData.applicationData;
+    console.log(CombinedData);
     console.log(customers);
+    console.log(applicationData);
     if (customers.length == 0) {
         alert("Customer Data not found in last one hour duration");
     }
@@ -109,48 +115,60 @@
             if (date > latestDate) latestDate = date;
         });
     });
+    function prepareCustomerData(customers){
+        const chartData = {
+            datasets: customers.map(customer => ({
+                label: `Customer ${customer.customerId}`,
+                data: customer.details.map(detail => ({
+                    x: new Date(detail.insertedDate),
+                    y: customer.customerId,
+                    applicationStatus: ApplicationStatusCode[detail.applicationStatusCode],
+                    customerStatus: CustomerStatusCode[detail.customerStatusCode],
+                    color: detail.color
+                })),
+                showLine: true,
+                fill: false,
+                pointBackgroundColor: customer.details.map(detail => detail.color),
+                pointBorderColor: customer.details.map(detail => detail.color),
+                segment: {
+                    borderColor: (ctx) => {
+                        if (ctx.p0DataIndex === undefined || ctx.p1DataIndex === undefined) {
+                            return '#000000';
+                        }
 
-    // Prepare the data for Chart.js
-    const chartData = {
-        datasets: customers.map(customer => ({
-            label: `Customer ${customer.customerId}`,
-            data: customer.details.map(detail => ({ 
-                x: new Date(detail.insertedDate),
-                y: customer.customerId,
-                applicationStatus: ApplicationStatusCode[detail.applicationStatusCode],
-                customerStatus: CustomerStatusCode[detail.customerStatusCode],
-                color: detail.color
-            })),
-            showLine: true,
-            fill: false,
-            pointBackgroundColor: customer.details.map(detail => detail.color),
-            pointBorderColor: customer.details.map(detail => detail.color),
-            segment: {
-                borderColor: (ctx) => {
-                    if (ctx.p0DataIndex === undefined || ctx.p1DataIndex === undefined) {
-                        return '#000000';
+                        const datasetIndex = ctx.datasetIndex;
+                        const pointIndex = ctx.p1DataIndex;
+
+                        const color = chartData.datasets[datasetIndex].data[pointIndex].color;
+                        return color || '#000000';
                     }
+                },
+                borderWidth: 1
+            }))
+        };
+        return chartData;
+    }
+    function prepareApplicationData(applicationData) {
+        const labels = applicationData.map(data => ApplicationStatusCode[data.applicationStatusCode]);
+        const dataCounts = applicationData.map(data => data.count);
+        return {
+            labels: labels,
+            dataCounts: dataCounts
+        };
+    }
+    
 
-                    const datasetIndex = ctx.datasetIndex;
-                    const pointIndex = ctx.p1DataIndex;
+    const ctx1 = document.getElementById('customerChart').getContext('2d');
+    const ctx2 = document.getElementById('applicationStatusChart').getContext('2d');
 
-                    const color = chartData.datasets[datasetIndex].data[pointIndex].color;
-                    return color || '#000000';
-                }
-            },
-            borderWidth: 1
-        }))
-    };
-
-    const ctx = document.getElementById('customerChart').getContext('2d');
     const customerSpacing = 20; // Fixed spacing between customer IDs
     const chartHeight = customers.length * customerSpacing;
 
     // Set canvas height dynamically based on the number of customers
-    ctx.canvas.height = chartHeight;
-    const customerChart = new Chart(ctx, {
+    ctx1.canvas.height = chartHeight;
+    const customerChart = new Chart(ctx1, {
         type: 'line',
-        data: chartData,
+        data: prepareCustomerData(customers),
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -219,6 +237,28 @@
                             ];
                         }
                     }
+                }
+            }
+        }
+    });
+
+    const ApplicationData = prepareApplicationData(applicationData);
+    const barChart = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+            labels: ApplicationData.labels,
+            datasets: [{
+                label: 'Application Status Count',
+                data: ApplicationData.dataCounts,
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
                 }
             }
         }
