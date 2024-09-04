@@ -16,7 +16,13 @@ namespace CustomerStatus.Controllers
         public async Task<IActionResult> Index()
         {
             List<Customer> Data = await _chartService.getData();
-            return View(Data);
+            List<BarData> barData = await _chartService.GetApplicationData();
+            var CombinedData = new CombinedDataModel()
+            {
+                customerData = Data,
+                ApplicationData = barData,
+            };
+            return View(CombinedData);
         }
     }
 }
